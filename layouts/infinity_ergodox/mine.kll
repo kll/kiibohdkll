@@ -1,0 +1,58 @@
+Name = mine;
+Version = 0.2;
+Author = "Kevin Lewis 2017";
+KLL = 0.5;
+
+# Modified Date
+Date = 2017-11-01;
+
+# Top Row - Left
+U"Equals" : U"Backtick";
+
+# Top Row - Right
+U"Function6" : U"Lock2";
+
+# Top-Middle Row - Left
+U"Backslash" : U"Tab";
+U"Function1" : U"Left Brace";
+
+# Top-Middle Row - Right
+U"Left Brace" : U"Right Brace";
+U"Right Brace" : U"Backslash"
+
+# Middle Row - Left
+U"Tab" : U"Equals";
+
+# Top Thumb Cluster - Left
+U"LAlt" : U"End";
+U"LCtrl" : U"Home";
+
+# Top Thumb Cluster - Right
+U"RAlt" : U"LAlt" + U"LCtrl" + U"Left Shift";
+U"RCtrl" : U"LAlt" + U"LCtrl" + U"Left Shift" + U"LGui";
+
+# Bottom-Middle Row - Left
+U"Function1" : U"Lock1";
+
+# Bottom-Middle Row - Right
+U"Function7" : U"Function1";
+
+# Bottom Thumb Cluster - Left
+U"Home" : U"PageUp";
+U"End" : U"PageDown";
+U"Delete" : U"Delete";
+U"Backspace" : U"Backspace";
+
+# Bottom Thumb Cluster - Right
+U"PageUp" : U"PrintScreen";
+U"PageDown" : U"Insert";
+
+# Bottom Row - Left
+U"LGui" : U"LCtrl";
+U"Backtick" : U"LGui";
+U"Function3" : U"LAlt";
+U"Function4" : U"LAlt" + U"LCtrl" + U"Left Shift" + U"LGui";
+U"Function5" : U"App";
+
+# Bottom Row - Right
+U"RGui" : U"LGui" + U"Tab";
