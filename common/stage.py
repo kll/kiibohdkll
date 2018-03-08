@@ -3,7 +3,7 @@
 KLL Compiler Stage Definitions
 '''
 
-# Copyright (C) 2016-2017 by Jacob Alexander
+# Copyright (C) 2016-2018 by Jacob Alexander
 #
 # This file is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -516,7 +516,7 @@ class PreprocessorStage(Stage):
             ('Operator', (r'=>|<=|i:\+|i:-|i::|i:|:\+|:-|::|:|=', )),
             ('USBCode', (r'U(("[^"]+")|(0x[0-9a-fA-F]+)|([0-9]+))', )),
             ('NumberBase10', (r'(([1-9][0-9]*))', )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'-?((0x[0-9a-fA-F]+)|(0|([1-9][0-9]*)))', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
             ('Misc', (r'.', )),  # Everything else
         ]
@@ -1121,7 +1121,7 @@ class OperationSpecificsStage(Stage):
             ('Operator', (r':', )),
             ('Comma', (r',', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'-?((0x[0-9a-fA-F]+)|(0|([1-9][0-9]*)))', )),
         ]
 
         # Tokenize, expression stores the result, status is returned
@@ -1148,8 +1148,8 @@ class OperationSpecificsStage(Stage):
             ('Position', (r'r?[xyz]:-?[0-9]+(.[0-9]+)?', )),
 
             ('Comma', (r',', )),
+            ('Number', (r'(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
             ('Dash', (r'-', )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
         ]
 
@@ -1179,7 +1179,7 @@ class OperationSpecificsStage(Stage):
             ('Comma', (r',', )),
             ('Parenthesis', (r'\(|\)', )),
             ('Percent', (r'-?(0|([1-9][0-9]*))%', )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'-?((0x[0-9a-fA-F]+)|(0|([1-9][0-9]*)))', )),
             ('Dash', (r'-', )),
             ('Plus', (r'\+', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
@@ -1198,7 +1198,7 @@ class OperationSpecificsStage(Stage):
         lspec = [
             ('Space', (r'[ \t]+', )),
 
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
             ('CodeBegin', (r'\[', )),
             ('CodeEnd', (r'\]', )),
@@ -1209,7 +1209,7 @@ class OperationSpecificsStage(Stage):
 
             ('String', (r'"[^"]*"', )),
             ('SequenceString', (r"'[^']*'", )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
             ('VariableContents', (r'''[^"' ;:=>()]+''', )),
         ]
@@ -1256,15 +1256,15 @@ class OperationSpecificsStage(Stage):
             ('CodeEnd', (r'\]', )),
 
             ('String', (r'"[^"]*"', )),
-            ('SequenceString', (r"'[^']*'", )),
+            ('SequenceStringL', (r"'[^']*'", )),
 
             ('Operator', (r':', )),
             ('Comma', (r',', )),
-            ('Dash', (r'-', )),
             ('Plus', (r'\+', )),
             ('Parenthesis', (r'\(|\)', )),
             ('Timing', (r'[0-9]+(.[0-9]+)?((s)|(ms)|(us)|(ns))', )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Dash', (r'-', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
         ]
 
@@ -1289,17 +1289,17 @@ class OperationSpecificsStage(Stage):
             ('CodeEnd', (r'\]', )),
 
             ('String', (r'"[^"]*"', )),
-            ('SequenceString', (r"'[^']*'", )),
+            ('SequenceStringR', (r"'[^']*'", )),
 
             ('None', (r'None', )),
 
             ('Operator', (r':', )),
             ('Comma', (r',', )),
-            ('Dash', (r'-', )),
             ('Plus', (r'\+', )),
             ('Parenthesis', (r'\(|\)', )),
             ('Timing', (r'[0-9]+(.[0-9]+)?((s)|(ms)|(us)|(ns))', )),
-            ('Number', (r'-?(0x[0-9a-fA-F]+)|(0|([1-9][0-9]*))', )),
+            ('Number', (r'-?((0x[0-9a-fA-F]+)|(0|([1-9][0-9]*)))', )),
+            ('Dash', (r'-', )),
             ('Name', (r'[A-Za-z_][A-Za-z_0-9]*', )),
         ]
 
@@ -2237,6 +2237,7 @@ class DataAnalysisStage(Stage):
         self.pixel_display_params = dict()
 
         self.animation_settings = dict()
+        self.animation_settings_orig = dict()
         self.animation_settings_list = []
 
         self.partial_contexts = None
@@ -2343,6 +2344,10 @@ class DataAnalysisStage(Stage):
                 max_uid = elem[0].max_trigger_uid()
                 if max_uid > self.max_scan_code[index]:
                     self.max_scan_code[index] = max_uid
+
+            # Unset min_scan_code if not set
+            if self.min_scan_code[index] == 0xFFFF and self.max_scan_code[index] == 0:
+                self.min_scan_code[index] = 0
 
         # Sort expressions by trigger and result, there may be *duplicate* triggers however don't reduce yet
         # we need the trigger->result and result->trigger mappings still
@@ -2647,7 +2652,7 @@ class DataAnalysisStage(Stage):
 
         This function reconciles default and used animation settings.
         Default settings are used to simplify used animation results.
-        Meaning that you don't have to remember to define the correct interpolation algorith every time.
+        Meaning that you don't have to remember to define the correct interpolation algorithm every time.
         Each permutation of animation settings is stored (along with the defaults even if not used directly).
 
         A reduction is done such that only the minimum number of settings entries are created.
@@ -2703,7 +2708,11 @@ class DataAnalysisStage(Stage):
 
             # Add update setting
             self.animation_settings[str_name] = new_setting
-            self.animation_settings_list.append(str_name)
+            self.animation_settings_orig[str_name] = val
+
+            # Make sure we haven't added this setting to the list already
+            if str_name not in self.animation_settings_list:
+                self.animation_settings_list.append(str_name)
 
     def analyze(self):
         '''

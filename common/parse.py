@@ -10,7 +10,7 @@ REMEMBER: When editing parser BNF-like expressions, order matters. Specifically 
 # Parser doesn't play nice with linters, disable some checks
 # pylint: disable=no-self-argument, too-many-public-methods, no-self-use, bad-builtin
 
-# Copyright (C) 2016-2017 by Jacob Alexander
+# Copyright (C) 2016-2018 by Jacob Alexander
 #
 # This file is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ from common.hid_dict import kll_hid_lookup_dictionary
 
 from common.id import (
     AnimationId, AnimationFrameId,
-    CapArgId, CapId,
+    CapArgId, CapArgValue, CapId,
     HIDId,
     NoneId,
     PixelAddressId, PixelId, PixelLayerId,
@@ -376,11 +376,14 @@ class Make:
         '''
         return [[[NoneId()]]]
 
-    def seqString(token):
+    def seqString(token, spec='lspec'):
         '''
         Converts sequence string to a sequence of combinations
 
-        'Ab' -> U"Shift" + U"A", U"B"
+        'Ab'  -> U"Shift" + U"A", U"B"
+        'abb' -> U"A", U"B", U"NoEvent", U"B"
+
+        @param spec: 'lspec' or 'rspec'
         '''
         # TODO - Add locale support
 
@@ -405,6 +408,7 @@ class Make:
 
         listOfLists = []
         shiftKey = kll_hid_lookup_dictionary['USBCode']["SHIFT"]
+        last_code = ('USB', None)
 
         # Creates a list of USB codes from the string: sequence (list) of combos (lists)
         for char in token[1:-1]:
@@ -424,6 +428,13 @@ class Make:
             # NOTE: Case-insensitive, which is why the shift must be pre-computed
             usb_code = kll_hid_lookup_dictionary['USBCode'][processedChar.upper()]
 
+            # If the last code was the same as this one, insert a NoEvent code (0)
+            # Only use for rspec
+            if usb_code[1] == last_code[1] and spec == 'rspec':
+                no_event = kll_hid_lookup_dictionary['USBCode']['NOEVENT']
+                block_code = [[HIDId('USBCode', no_event[1])]]
+                listOfLists.append(block_code)
+
             # Create Combo for this character, add shift key if shifted
             charCombo = []
             if shiftCombo:
@@ -433,7 +444,30 @@ class Make:
             # Add to list of lists
             listOfLists.append(charCombo)
 
+            # Store code to compare to the next one
+            last_code = usb_code
+
         return listOfLists
+
+    def seqStringL(token):
+        '''
+        Converts sequence string to a sequence of combinations
+        lspec side
+
+        'Ab'  -> U"Shift" + U"A", U"B"
+        'abb' -> U"A", U"B", U"NoEvent", U"B"
+        '''
+        return Make.seqString(token, 'lspec')
+
+    def seqStringR(token):
+        '''
+        Converts sequence string to a sequence of combinations
+        rspec side
+
+        'Ab'  -> U"Shift" + U"A", U"B"
+        'abb' -> U"A", U"B", U"NoEvent", U"B"
+        '''
+        return Make.seqString(token, 'rspec')
 
     def string(token):
         '''
@@ -624,11 +658,17 @@ class Make:
         '''
         return CapArgId(argument, width)
 
+    def capArgValue(value):
+        '''
+        Converts a capability argument value to a CapArgValue
+        '''
+        return CapArgValue(value)
+
     def capUsage(name, arguments):
         '''
         Converts a capability tuple, argument list to a CapId Usage
         '''
-        return CapId(name, 'Usage', arguments)
+        return CapId(name, 'Capability', arguments)
 
     def debug(tokens):
         '''
@@ -801,7 +841,8 @@ timing = tokenType('Timing') >> Make.timing
 
 string = tokenType('String') >> Make.string
 unString = tokenType('String')  # When the double quotes are still needed for internal processing
-seqString = tokenType('SequenceString') >> Make.seqString
+seqStringL = tokenType('SequenceStringL') >> Make.seqStringL # lspec
+seqStringR = tokenType('SequenceStringR') >> Make.seqStringR # rspec
 unseqString = tokenType('SequenceString') >> Make.unseqString  # For use with variables
 
 
@@ -894,7 +935,7 @@ usbCode_elem = usbCode + maybe(specifier_list) >> unarg(Make.specifierUnroll)
 hidCode_elem = usbCode_expanded | usbCode_elem | sysCode_expanded | sysCode_elem | consCode_expanded | consCode_elem | indCode_expanded | indCode_elem
 
 usbCode_combo = oneplus(hidCode_elem + skip(maybe(plus))) >> listElem
-usbCode_sequence = oneplus((usbCode_combo | seqString) + skip(maybe(comma))) >> oneLayerFlatten
+usbCode_sequence = oneplus((usbCode_combo | seqStringL | seqStringR) + skip(maybe(comma))) >> oneLayerFlatten
 
 # Pixels
 pixel_start = tokenType('PixelStart')
@@ -954,11 +995,11 @@ animation_modlist = animation_modifier >> Make.animationModlist
 animation_capability = ((animation_def | animation_elem) + maybe(skip(parenthesis('(')) + animation_modifier + skip(parenthesis(')')))) >> unarg(Make.animationCapability)
 
 # Capabilities
-capFunc_argument = number >> Make.capArg  # TODO Allow for symbolic arguments, i.e. arrays and variables
+capFunc_argument = number >> Make.capArgValue  # TODO Allow for symbolic arguments, i.e. arrays and variables
 capFunc_arguments = many(capFunc_argument + skip(maybe(comma)))
 capFunc_elem = name + skip(parenthesis('(')) + capFunc_arguments + skip(parenthesis(')')) >> unarg(Make.capUsage) >> listElem
 capFunc_combo = oneplus((hidCode_elem | capFunc_elem | animation_capability | pixel_capability) + skip(maybe(plus))) >> listElem
-capFunc_sequence = oneplus((capFunc_combo | seqString) + skip(maybe(comma))) >> oneLayerFlatten
+capFunc_sequence = oneplus((capFunc_combo | seqStringR) + skip(maybe(comma))) >> oneLayerFlatten
 
 # Trigger / Result Codes
 triggerCode_outerList = scanCode_sequence >> optionExpansion

@@ -3,7 +3,7 @@
 KLL Id Containers
 '''
 
-# Copyright (C) 2016-2017 by Jacob Alexander
+# Copyright (C) 2016-2018 by Jacob Alexander
 #
 # This file is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -56,6 +56,16 @@ class Id:
         self.uid stores the original uid whereas it may be updated due to multi-node configurations
         '''
         return self.uid
+
+    def json(self):
+        '''
+        JSON representation of Id
+        Generally each specialization of the Id class will need to enhance this function.
+        '''
+        return {
+            'type' : self.type,
+            'uid'  : self.uid,
+        }
 
     def kllify(self):
         '''
@@ -133,6 +143,14 @@ class HIDId(Id, Schedule):
         output = 'HID({0})"{1}"{2}'.format(self.type, uid, schedule)
         return output
 
+    def json(self):
+        '''
+        JSON representation of HIDId
+        '''
+        output = Id.json(self)
+        output.update(Schedule.json(self))
+        return output
+
     def kllify(self):
         '''
         Returns KLL version of the Id
@@ -203,6 +221,15 @@ class ScanCodeId(Id, Schedule, Position):
         else:
             return "S{0:03d}".format(self.get_uid())
 
+    def json(self):
+        '''
+        JSON representation of ScanCodeId
+        '''
+        output = Id.json(self)
+        output.update(Schedule.json(self))
+        output.update(Position.json(self))
+        return output
+
     def kllify(self):
         '''
         Returns KLL version of the Id
@@ -250,6 +277,17 @@ class AnimationId(Id, AnimationModifierList):
         This is currently 2 bytes.
         '''
         return 2
+
+    def json(self):
+        '''
+        JSON representation of AnimationId
+        '''
+        output = Id.json(self)
+        output.update(AnimationModifierList.json(self))
+        output['name'] = self.name
+        output['setting'] = "{}".format(self)
+        del output['uid']
+        return output
 
 
 class AnimationFrameId(Id, AnimationModifierList):
@@ -533,6 +571,16 @@ class CapId(Id):
 
         return "{0}({1})".format(self.name, arg_string)
 
+    def json(self):
+        '''
+        JSON representation of CapId
+        '''
+        return {
+            'type' : self.type,
+            'name' : self.name,
+            'args' : [arg.json() for arg in self.arg_list]
+        }
+
     def total_arg_bytes(self, capabilities_dict=None):
         '''
         Calculate the total number of bytes needed for the args
@@ -545,7 +593,7 @@ class CapId(Id):
         total_bytes = 0
         for index, arg in enumerate(self.arg_list):
             # Lookup actual width if necessary (wasn't set explicitly)
-            if capabilities_dict is not None and arg.width is None:
+            if capabilities_dict is not None and (arg.type == 'CapArgValue' or arg.width is None):
                 # Check if there are enough arguments
                 expected = len(capabilities_dict[self.name].association.arg_list)
                 got = len(self.arg_list)
@@ -578,6 +626,14 @@ class NoneId(CapId):
     def __init__(self):
         super().__init__('None', 'None')
 
+    def json(self):
+        '''
+        JSON representation of NoneId
+        '''
+        return {
+            'type' : self.type,
+        }
+
     def __repr__(self):
         return "None"
 
@@ -602,3 +658,40 @@ class CapArgId(Id):
             return "{0}".format(self.name)
         else:
             return "{0}:{1}".format(self.name, self.width)
+
+    def json(self):
+        '''
+        JSON representation of CapArgId
+        '''
+        return {
+            'name' : self.name,
+            'width' : self.width,
+            'type' : self.type,
+        }
+
+
+class CapArgValue(Id):
+    '''
+    Capability Argument Value identifier
+    '''
+
+    def __init__(self, value):
+        '''
+        @param value: Value of argument
+        '''
+        Id.__init__(self)
+        self.value = value
+        self.type = 'CapArgValue'
+
+    def __repr__(self):
+        return "{}".format(self.value)
+
+    def json(self):
+        '''
+        JSON representation of CapArgValue
+        '''
+        return {
+            'value' : self.value,
+            'type' : self.type,
+        }
+

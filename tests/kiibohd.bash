@@ -1,6 +1,6 @@
 #!/bin/bash
 # Specific combinations of .kll files for testing kiibohd controller code
-# Jacob Alexander 2017
+# Jacob Alexander 2017-2018
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Common functions
@@ -30,7 +30,7 @@ simple_test() {
 		--config \
 		${CONTROLLER}/Scan/Devices/MatrixARM/capabilities.kll \
 		${CONTROLLER}/Macro/PartialMap/capabilities.kll \
-		${CONTROLLER}/Output/pjrcUSB/capabilities.kll \
+		${CONTROLLER}/Output/USB/capabilities.kll \
 		--base \
 		${CONTROLLER}/Scan/Infinity_60/scancode_map.kll \
 		${CONTROLLER}/kll/examples/nonetest.kll \
@@ -58,7 +58,7 @@ func1_test() {
 		${CONTROLLER}/Macro/PartialMap/capabilities.kll \
 		${CONTROLLER}/Macro/PixelMap/capabilities.kll \
 		${CONTROLLER}/Output/HID-IO/capabilities.kll \
-		${CONTROLLER}/Output/pjrcUSB/capabilities.kll \
+		${CONTROLLER}/Output/USB/capabilities.kll \
 		--base \
 		${CONTROLLER}/Scan/WhiteFox/scancode_map.kll \
 		${CONTROLLER}/Scan/WhiteFox/scancode_map.truefox.kll \
@@ -92,7 +92,7 @@ add_test() {
 		${CONTROLLER}/Macro/PartialMap/capabilities.kll \
 		${CONTROLLER}/Macro/PixelMap/capabilities.kll \
 		${CONTROLLER}/Output/HID-IO/capabilities.kll \
-		${CONTROLLER}/Output/pjrcUSB/capabilities.kll \
+		${CONTROLLER}/Output/USB/capabilities.kll \
 		--base \
 		${CONTROLLER}/Scan/K-Type/scancode_map.kll \
 		--default \
@@ -129,7 +129,7 @@ interconnect_test() {
 		${CONTROLLER}/Macro/PartialMap/capabilities.kll \
 		${CONTROLLER}/Macro/PixelMap/capabilities.kll \
 		${CONTROLLER}/Output/HID-IO/capabilities.kll \
-		${CONTROLLER}/Output/pjrcUSB/capabilities.kll \
+		${CONTROLLER}/Output/USB/capabilities.kll \
 		--base \
 		${CONTROLLER}/Scan/Infinity_Ergodox/scancode_map.kll \
 		${CONTROLLER}/Scan/Infinity_Ergodox/leftHand.kll \
@@ -155,11 +155,48 @@ interconnect_test() {
 		--json-output ${TEST_PATH}/kll.json ${@}
 }
 
+# klltest.kll
+klltest_test() {
+	local TEST_PATH=${OUT_PATH}/klltest
+	mkdir -p ${TEST_PATH}
+	echo "${FUNCNAME[0]}"
+	cmd ../kll \
+		--config \
+		${CONTROLLER}/Scan/Devices/MatrixARM/capabilities.kll \
+		${CONTROLLER}/Macro/PartialMap/capabilities.kll \
+		${CONTROLLER}/Output/USB/capabilities.kll \
+		--base \
+		${CONTROLLER}/Scan/Infinity_60/scancode_map.kll \
+		--default \
+		${CONTROLLER}/kll/layouts/klltest.kll \
+		--emitter kll \
+		--target-dir ${TEST_PATH} \
+		${@}
+	cmd ../kll \
+		--config \
+		${CONTROLLER}/Scan/Devices/MatrixARM/capabilities.kll \
+		${CONTROLLER}/Macro/PartialMap/capabilities.kll \
+		${CONTROLLER}/Output/USB/capabilities.kll \
+		--base \
+		${CONTROLLER}/Scan/Infinity_60/scancode_map.kll \
+		--default \
+		${CONTROLLER}/kll/layouts/klltest.kll \
+		--emitter kiibohd \
+		--def-template ${CONTROLLER}/kll/templates/kiibohdDefs.h \
+		--map-template ${CONTROLLER}/kll/templates/kiibohdKeymap.h \
+		--pixel-template ${CONTROLLER}/kll/templates/kiibohdPixelmap.c \
+		--def-output ${TEST_PATH}/kll_defs.h \
+		--map-output ${TEST_PATH}/generatedKeymap.h \
+		--pixel-output ${TEST_PATH}/generatedPixelmap.c \
+		--json-output ${TEST_PATH}/kll.json ${@}
+}
+
 
 simple_test ${@}
 func1_test ${@}
 add_test ${@}
 interconnect_test ${@}
+klltest_test ${@}
 
 
 ## Tests complete

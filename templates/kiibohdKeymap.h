@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2016 by Jacob Alexander
+/* Copyright (C) 2014-2018 by Jacob Alexander
  *
  * This file is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,12 +46,6 @@
 
 // Indexed Table of Result Macros
 <|ResultMacroList|>
-
-
-// -- Trigger Macro Record
-
-// Keeps a record/state of each result macro
-<|ResultMacroRecord|>
 
 
 // -- Trigger Macros

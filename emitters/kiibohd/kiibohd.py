@@ -3,7 +3,7 @@
 KLL Kiibohd .h/.c File Emitter
 '''
 
-# Copyright (C) 2016-2017 by Jacob Alexander
+# Copyright (C) 2016-2018 by Jacob Alexander
 #
 # This file is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ KLL Kiibohd .h/.c File Emitter
 
 ### Imports ###
 
+import os
 import sys
 
 from datetime import date
@@ -54,6 +55,16 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
         'USB': 'usbKeyOut',
     }
 
+    # Code to capability mapping
+    code_to_capability = {
+        'Animation': 'animationIndex',
+        'Capability': None,
+        'ConsCode': 'consCtrlOut',
+        'ScanCode': None,
+        'SysCode': 'sysCtrlOut',
+        'USBCode': 'usbKeyOut',
+    }
+
     # Optional required capabilities
     # Used mostly for animationIndex
     optional_required_capabilities = [
@@ -78,6 +89,7 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
         self.pixel_output = "generatedPixelmap.c"
         self.def_output = "kll_defs.h"
         self.json_output = "kll.json"
+        self.kiibohd_debug = False
 
         # Convenience
         self.capabilities = None
@@ -105,6 +117,7 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
         self.map_output = args.map_output
         self.pixel_output = args.pixel_output
         self.json_output = args.json_output
+        self.kiibohd_debug = args.kiibohd_debug
 
     def command_line_flags(self, parser):
         '''
@@ -143,6 +156,26 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
             help="Specify json output file for settings dictionary.\n"
             "\033[1mDefault\033[0m: {0}\n".format(self.json_output)
         )
+        group.add_argument(
+            '--kiibohd-debug',
+            action='store_true',
+            default=self.kiibohd_debug,
+            help="Show debug info from kiibohd emitter.",
+        )
+
+    def check_file(self, filepath):
+        '''
+        Check file, make sure it exists
+
+        @param filepath: File path
+
+        @returns: True if path exists
+        '''
+        if not os.path.isfile(filepath):
+            print("{} Did not generate: {}".format(
+                ERROR,
+                os.path.abspath(filepath),
+            ))
 
     def output(self):
         '''
@@ -150,6 +183,14 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
 
         Generate desired outputs from templates
         '''
+        if self.kiibohd_debug:
+            print("-- Generating --")
+            print(os.path.abspath(self.def_output))
+            print(os.path.abspath(self.map_output))
+            if self.use_pixel_map:
+                print(os.path.abspath(self.pixel_output))
+            print(os.path.abspath(self.json_output))
+
         # Load define template and generate
         self.load_template(self.def_template)
         self.generate(self.def_output)
@@ -169,6 +210,13 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
 
         # Generate Json Output
         self.generate_json(self.json_output)
+
+        # Make sure files were generated
+        self.check_file(self.def_output)
+        self.check_file(self.map_output)
+        if self.use_pixel_map:
+            self.check_file(self.pixel_output)
+        self.check_file(self.json_output)
 
     def byte_split(self, number, total_bytes):
         '''
@@ -259,7 +307,7 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
                     cap = "{0}".format(cap_index)
                     for arg, lookup in zip(identifier.arg_list, cap_lookup.arg_list):
                         cap += ", "
-                        cap += ", ".join(self.byte_split(arg.name, lookup.width))
+                        cap += ", ".join(self.byte_split(arg.value, lookup.width))
 
                 # Otherwise, no arguments necessary
                 else:
@@ -321,12 +369,27 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
             # Construct trigger combo
             trigger = "/* XXX INVALID XXX */"
 
+            # TODO Add support for Analog keys
+            # TODO Add support for LED states
+            # TODO Add support for non-press states
             # ScanCodeId
             if isinstance(identifier, ScanCodeId):
-                # TODO Add support for Analog keys
-                # TODO Add support for LED states
-                # - TODO - Offset for interconnect?
-                trigger = "0x00, 0x01, 0x{0:02X}".format(identifier.get_uid())
+                uid = identifier.get_uid()
+                trigger_type = "/* XXX INVALID TYPE XXX */"
+                state = "ScheduleType_P"
+
+                # Determine the type
+                if uid < 256:
+                    trigger_type = "TriggerType_Switch1"
+                elif uid < 512:
+                    trigger_type = "TriggerType_Switch2"
+                elif uid < 768:
+                    trigger_type = "TriggerType_Switch3"
+                elif uid < 1024:
+                    trigger_type = "TriggerType_Switch4"
+
+                # <type>, <state>, <scanCode>
+                trigger = "{0}, {1}, 0x{2:02X}".format(trigger_type, state, uid)
 
             # Unknown/Invalid Id
             else:
@@ -379,7 +442,7 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
             return modifier
 
         if name == 'pfunc':
-            if not modifier or modifier is None:
+            if not modifier or modifier is None or modifier == 'off':
                 return 0
             if modifier.arg == 'interp':
                 return 1
@@ -514,12 +577,18 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
         pixel_display_params = self.control.stage('DataAnalysisStage').pixel_display_params
 
         animation_settings = self.control.stage('DataAnalysisStage').animation_settings
+        animation_settings_orig = self.control.stage('DataAnalysisStage').animation_settings_orig
         animation_settings_list = self.control.stage('DataAnalysisStage').animation_settings_list
 
         # Setup json datastructures
         animation_id_json = dict()
+        animation_settings_json = dict()
+        animation_settings_index_json = []
         pixel_id_json = dict()
         scancode_json = dict()
+        capabilities_json = dict()
+        defines_json = dict()
+        layers_json = dict()
 
         # Build string list of compiler arguments
         compilerArgs = ""
@@ -617,10 +686,15 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
             if dvalue.name in variables.data.keys():
                 # TODO Handle arrays
                 if not isinstance(variables.data[dvalue.name].value, list):
+                    value = variables.data[dvalue.name].value.replace('\n', ' \\\n')
                     self.fill_dict['Defines'] += "\n#define {0} {1}".format(
                         dvalue.association,
-                        variables.data[dvalue.name].value.replace('\n', ' \\\n'),
+                        value,
                     )
+                    defines_json[dvalue.name] = {
+                        'name' : dvalue.association,
+                        'value' : value,
+                    }
             else:
                 print("{0} '{1}' not defined...".format(WARNING, dvalue.name))
 
@@ -633,14 +707,50 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
         self.capabilities = full_context.query('NameAssociationExpression', 'Capability')
         self.capabilities_index = dict()
         count = 0
+        safe_capabilities = [
+            # PartialMap
+            "layerState",
+            "layerLatch",
+            "layerLock",
+            "layerShift",
+            "layerRotate",
+            "testThreadSafe",
+            # USB
+            "consCtrlOut",
+            "noneOut",
+            "sysCtrlOut",
+            "usbKeyOut",
+            "mouseOut",
+            "flashMode",
+        ]
         for dkey, dvalue in sorted(self.capabilities.data.items(), key=lambda x: x[1].association.name):
             funcName = dvalue.association.name
             argByteWidth = dvalue.association.total_arg_bytes()
+            features = "CapabilityFeature_Safe" if dkey in safe_capabilities else "CapabilityFeature_None"
 
-            self.fill_dict['CapabilitiesList'] += "\t/* {2} */ {{ {0}, {1} }},\n".format(funcName, argByteWidth, count)
+            self.fill_dict['CapabilitiesList'] += "\t/* {3} {4} */\n\t{{ {0}, {1}, {2} }},\n".format(
+                funcName,
+                argByteWidth,
+                features,
+                count,
+                dkey,
+            )
             self.fill_dict['CapabilitiesFuncDecl'] += \
                 "void {0}( TriggerMacro *trigger, uint8_t state, uint8_t stateType, uint8_t *args );\n".format(funcName)
             self.fill_dict['CapabilitiesIndices'] += "\t{0}_index,\n".format(funcName)
+
+            # Add to json
+            capabilities_json[dkey] = {
+                'args_count' : len(dvalue.association.arg_list),
+                'args' : [],
+                'name' : funcName,
+                'index' : count,
+            }
+            for arg in dvalue.association.arg_list:
+                capabilities_json[dkey]['args'].append({
+                    'name' : arg.name,
+                    'width' : arg.width,
+                })
 
             # Generate index for result lookup
             self.capabilities_index[dkey] = count
@@ -705,9 +815,6 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
                 result[0].result_str()
             )
         self.fill_dict['ResultMacroList'] += "};"
-
-        ## Result Macro Record ##
-        self.fill_dict['ResultMacroRecord'] = "ResultMacroRecord ResultMacroRecordList[ ResultMacroNum ];"
 
         ## Trigger Macros ##
         self.fill_dict['TriggerMacros'] = ""
@@ -875,7 +982,20 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
         self.fill_dict['LayerIndexList'] += "};"
 
         ## Layer State ##
-        self.fill_dict['LayerState'] = "uint8_t LayerState[ LayerNum ];"
+        self.fill_dict['LayerState'] = "LayerStateType LayerState[ LayerNum ];"
+
+        ## Layers JSON ##
+        # Layer 0 is the default map
+        # Layer 1+ are the partial maps
+        for layer, layer_context in enumerate(reduced_contexts):
+            layer_info = dict()
+            for key, mapped_trigger in sorted(layer_context.organization.mapping_data.data.items()):
+                layer_info[key] = {
+                    'trigger' : mapped_trigger[0].triggersSequenceOfCombosOfIds(),
+                    'result' : mapped_trigger[0].resultsSequenceOfCombosOfIds(),
+                    'kll' : mapped_trigger[0].kllify()
+                }
+            layers_json[layer] = layer_info
 
         ## PixelId Physical Positions ##
         for key, entry in sorted(pixel_positions.items()):
@@ -1034,6 +1154,11 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
                 # Map index to name (json)
                 animation_id_json[animation.association.name] = count
 
+                # Animation Settings Index JSON entry
+                animation_entry_json = animation.association.json()
+                animation_entry_json.update(animation.value.json())
+                animation_settings_index_json.append(animation_entry_json)
+
                 # Generate animation settings string entry
                 self.fill_dict['AnimationSettings'] += self.animation_settings_entry(
                     animation.value,
@@ -1048,9 +1173,16 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
             self.fill_dict['AnimationSettings'] += "\n\n\t/* Additional Settings */\n"
             while count < len(animation_settings_list):
                 animation = animation_settings[animation_settings_list[count]]
+                animation_orig = animation_settings_orig[animation_settings_list[count]]
                 animation_name = "Animation__{0}".format(
                     animation.name
                 )
+
+                # Animation Settings JSON entry
+                animation_settings_json["{}".format(animation_orig)] = count
+
+                # Animation Settings Index JSON entry
+                animation_settings_index_json.append(animation.json())
 
                 # Generate animation settings string entry
                 self.fill_dict['AnimationSettings'] += self.animation_settings_entry(
@@ -1238,8 +1370,40 @@ class Kiibohd(Emitter, TextEmitter, JsonEmitter):
             self.fill_dict['KLLDefines'] += "#define Pixel_AnimationSettingsNum_KLL {0}\n".format(
                 len(animation_settings_list)
             )
+            self.fill_dict['KLLDefines'] += "#define AnimationNum_KLL {0}\n".format(len(animations.data))
+        else:
+            self.fill_dict['KLLDefines'] += "#define AnimationNum_KLL 0\n"
+
+        ## Define Validation ##
+        index_uint_t_size = int(variables.data['stateWordSize'].value)
+        total_index = max(len(trigger_index), len(result_index))
+        if total_index > 2 ** index_uint_t_size:
+            print("{} 'stateWordSize = {}' is not large enough! {} > {}".format(
+                ERROR,
+                index_uint_t_size,
+                total_index,
+                2 ** index_uint_t_size,
+            ))
+            self.error_exit = True
 
         ## Finish up JSON datastructures
+        # TODO Testing
+        # - Run trigger
+        #   1) Validate result (will need infra per capability)
+        #   2) Hook into animation testing?
+        # - Trigger Types
+        #   1) Switch
+        #   2) HID LED
+        #   3) Layer
+        #   4) Animation
+        #   5) Analog
         self.json_dict['AnimationIds'] = animation_id_json
+        self.json_dict['AnimationSettings'] = animation_settings_json
+        self.json_dict['AnimationSettingsIndex'] = animation_settings_index_json
         self.json_dict['PixelIds'] = pixel_id_json
         self.json_dict['ScanCodes'] = scancode_json
+        self.json_dict['Capabilities'] = capabilities_json
+        self.json_dict['Defines'] = defines_json
+        self.json_dict['Layers'] = layers_json
+        self.json_dict['CodeLookup'] = self.code_to_capability
+
