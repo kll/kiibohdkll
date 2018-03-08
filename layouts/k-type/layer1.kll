@@ -1,0 +1,27 @@
+Name = "Layer 1";
+Version = 1.0;
+Author = "kll (Kevin Lewis) 2018";
+KLL = 0.5;
+
+# Modified Date
+Date = 2018-03-08;
+
+U"F1" : A[static](start);
+U"F1" :+ A[miami](stop);
+U"F1" :+ A[rainbow_wipe](stop);
+U"F1" :+ A[streak](stop);
+
+U"F2" : A[static](stop);
+U"F2" :+ A[miami](start);
+U"F2" :+ A[rainbow_wipe](stop);
+U"F2" :+ A[streak](stop);
+
+U"F3" : A[static](stop);
+U"F3" :+ A[miami](stop);
+U"F3" :+ A[rainbow_wipe](start);
+U"F3" :+ A[streak](stop);
+
+U"F4" : A[static](stop);
+U"F4" :+ A[miami](stop);
+U"F4" :+ A[rainbow_wipe](stop);
+U"F4" :+ A[streak](start, loop, framedelay:3);

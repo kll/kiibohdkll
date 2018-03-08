@@ -1,0 +1,12 @@
+Name = "Layer 0";
+Version = 1.0;
+Author = "kll (Kevin Lewis) 2018";
+KLL = 0.5;
+
+# Modified Date
+Date = 2018-03-08;
+
+U"RGui" : U"Function1";
+
+A[static] <= start, replace:all, pfunc:interp;
+A[static, 1] <= P[1](255,255,255), P[87](255,255,255), P[88](255,0,0), P[119](255,0,0);
